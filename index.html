@@ -330,58 +330,60 @@
       });
     }
 
-    // --- ระบบค้นหาโรงเรียน (ใช้ลิงก์ใหม่ที่ถูกต้อง) ---
+    // --- ระบบค้นหาโรงเรียน (ใช้ API กระทรวงศึกษาธิการ) ---
 
-    // ลิงก์ JSON รายชื่อโรงเรียน (เครดิต: patsagorn/thai-school-data on GitHub - output folder)
-    const SCHOOL_API = "https://raw.githubusercontent.com/patsagorn/thai-school-data/main/output/schools.json";
+    // ลิงก์ API ที่คุณต้องการ
+    const SCHOOL_API = "https://exchange-api.moe.go.th/api/openv1/GetopenData49/2566/1";
 
-    let schoolMasterList = []; // ตัวแปรเก็บรายชื่อทั้งหมด
+    let schoolMasterList = []; 
 
-    // 1. โหลดข้อมูลทันทีเมื่อเปิดเว็บ
     window.addEventListener('DOMContentLoaded', () => {
+        const loadingTxt = document.getElementById('school-loading');
+        
         fetch(SCHOOL_API)
             .then(response => {
                 if (!response.ok) throw new Error("Network response was not ok");
                 return response.json();
             })
             .then(data => {
-                // ข้อมูลจาก API นี้จะเป็น Array ของ Object ให้ดึงเฉพาะ "school_name"
-                // ตัวอย่างข้อมูล: [{ "school_name": "บ้านหนองงูเหลือม", ... }, ...]
-                schoolMasterList = data.map(item => item.school_name);
+                // *** จุดสำคัญ: API ราชการมักเก็บชื่อโรงเรียนในตัวแปรชื่อ SCHOOL_NAME ***
+                // เราต้อง Map ให้ดึงออกมาเฉพาะชื่อ
+                schoolMasterList = data.map(item => item.SCHOOL_NAME);
                 
-                // อัปเดตสถานะ
-                const loadingTxt = document.getElementById('school-loading');
+                // เช็คว่ามีข้อมูลมาจริงไหม
+                if (schoolMasterList.length === 0) throw new Error("No data found");
+
+                console.log(`โหลดโรงเรียนสำเร็จ: ${schoolMasterList.length} แห่ง`);
+
                 if(loadingTxt) {
-                    loadingTxt.innerText = "✅ โหลดรายชื่อโรงเรียนเรียบร้อย (พร้อมค้นหา)";
+                    loadingTxt.innerText = "✅ เชื่อมต่อฐานข้อมูล ศธ. เรียบร้อย";
                     loadingTxt.classList.replace('text-secondary', 'text-success');
-                    // ซ่อนข้อความหลังจาก 3 วินาที
                     setTimeout(() => loadingTxt.style.display = 'none', 3000);
                 }
             })
             .catch(err => {
-                console.error("โหลดโรงเรียนไม่สำเร็จ:", err);
-                const loadingTxt = document.getElementById('school-loading');
+                console.error("เกิดข้อผิดพลาด:", err);
                 if(loadingTxt) {
-                    loadingTxt.innerText = "❌ โหลดไม่สำเร็จ (กรุณาพิมพ์ชื่อโรงเรียนเอง)";
-                    loadingTxt.classList.replace('text-secondary', 'text-danger');
+                    // ถ้า Error ส่วนใหญ่จะเป็นเพราะ CORS (โดนบล็อก) หรือลิงก์ผิด
+                    loadingTxt.innerText = "⚠️ ไม่สามารถดึงข้อมูลจาก ศธ. ได้ (อาจติดสิทธิ์การเข้าถึง)";
+                    loadingTxt.classList.replace('text-secondary', 'text-warning');
+                    // ถ้าพัง ให้ผู้ใช้พิมพ์เองได้เลย ไม่ต้องล็อก
                 }
             });
     });
 
-    // 2. ฟังก์ชันกรองรายชื่อตอนพิมพ์
+    // ฟังก์ชันค้นหา (เหมือนเดิม)
     function filterSchools(keyword) {
         const dataList = document.getElementById('school_datalist');
         
-        // ถ้ายังไม่มีข้อมูล หรือพิมพ์น้อยกว่า 2 ตัวอักษร ไม่ต้องค้น (กันเครื่องค้าง)
         if (schoolMasterList.length === 0 || !keyword || keyword.length < 2) {
             return; 
         }
 
-        // ค้นหาชื่อที่ "มีคำที่พิมพ์" (จำกัดแค่ 20 ชื่อแรก เพื่อความลื่นไหล)
-        const results = schoolMasterList.filter(name => name.includes(keyword)).slice(0, 20);
+        // ค้นหาและแสดง 20 รายชื่อแรก
+        const results = schoolMasterList.filter(name => name && name.includes(keyword)).slice(0, 20);
 
-        // สร้างตัวเลือกใน Datalist
-        dataList.innerHTML = ""; // ล้างค่าเก่า
+        dataList.innerHTML = ""; 
         results.forEach(schoolName => {
             const option = document.createElement('option');
             option.value = schoolName;
@@ -392,6 +394,7 @@
 </body>
 
 </html>
+
 
 
 
