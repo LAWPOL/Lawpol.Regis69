@@ -174,14 +174,14 @@
               <label class="form-label">โรงเรียน</label>
               <div class="position-relative">
                   <input type="text" class="form-control" name="school_S" id="schoolInput" 
-                         required placeholder="พิมพ์ชื่อโรงเรียน... (ระบบจะค้นหาให้อัตโนมัติ)" 
+                         required placeholder="พิมพ์ชื่อโรงเรียน... (เช่น สตรีสิริเกศ)" 
                          autocomplete="off" list="school_datalist"
                          oninput="filterSchools(this.value)">
                   
                   <datalist id="school_datalist"></datalist>
             
                   <small id="school-loading" class="text-secondary" style="font-size: 0.8rem;">
-                    ⏳ กำลังดาวน์โหลดรายชื่อโรงเรียนทั่วประเทศ...
+                    ⏳ กำลังดาวน์โหลดรายชื่อโรงเรียน...
                   </small>
               </div>
             </div>
@@ -330,48 +330,58 @@
       });
     }
 
-    const SCHOOL_API = "https://raw.githubusercontent.com/patsagorn/thai-school-data/master/school_data.json";
+    // --- ระบบค้นหาโรงเรียน (ใช้ลิงก์ใหม่ที่ถูกต้อง) ---
+
+    // ลิงก์ JSON รายชื่อโรงเรียน (เครดิต: patsagorn/thai-school-data on GitHub - output folder)
+    const SCHOOL_API = "https://raw.githubusercontent.com/patsagorn/thai-school-data/main/output/schools.json";
 
     let schoolMasterList = []; // ตัวแปรเก็บรายชื่อทั้งหมด
 
-    // 2. เริ่มโหลดข้อมูลทันทีที่เปิดเว็บ
+    // 1. โหลดข้อมูลทันทีเมื่อเปิดเว็บ
     window.addEventListener('DOMContentLoaded', () => {
         fetch(SCHOOL_API)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error("Network response was not ok");
+                return response.json();
+            })
             .then(data => {
-                // แปลงข้อมูลให้เหลือแค่ "ชื่อโรงเรียน" (ตัดข้อมูลพิกัด/รหัสออกเพื่อประหยัดเมมโมรี่)
+                // ข้อมูลจาก API นี้จะเป็น Array ของ Object ให้ดึงเฉพาะ "school_name"
+                // ตัวอย่างข้อมูล: [{ "school_name": "บ้านหนองงูเหลือม", ... }, ...]
                 schoolMasterList = data.map(item => item.school_name);
                 
-                // ซ่อนข้อความ Loading
+                // อัปเดตสถานะ
                 const loadingTxt = document.getElementById('school-loading');
                 if(loadingTxt) {
-                    loadingTxt.innerText = "✅ โหลดรายชื่อโรงเรียนเรียบร้อย (พิมพ์ค้นหาได้เลย)";
+                    loadingTxt.innerText = "✅ โหลดรายชื่อโรงเรียนเรียบร้อย (พร้อมค้นหา)";
                     loadingTxt.classList.replace('text-secondary', 'text-success');
-                    setTimeout(() => loadingTxt.style.display = 'none', 3000); // ซ่อนหลัง 3 วิ
+                    // ซ่อนข้อความหลังจาก 3 วินาที
+                    setTimeout(() => loadingTxt.style.display = 'none', 3000);
                 }
             })
             .catch(err => {
                 console.error("โหลดโรงเรียนไม่สำเร็จ:", err);
-                document.getElementById('school-loading').innerText = "❌ โหลดรายชื่อไม่สำเร็จ (กรุณาพิมพ์ชื่อโรงเรียนเอง)";
-                document.getElementById('school-loading').classList.replace('text-secondary', 'text-danger');
+                const loadingTxt = document.getElementById('school-loading');
+                if(loadingTxt) {
+                    loadingTxt.innerText = "❌ โหลดไม่สำเร็จ (กรุณาพิมพ์ชื่อโรงเรียนเอง)";
+                    loadingTxt.classList.replace('text-secondary', 'text-danger');
+                }
             });
     });
 
-    // 3. ฟังก์ชันค้นหาและแสดงผล (ทำงานตอนพิมพ์)
+    // 2. ฟังก์ชันกรองรายชื่อตอนพิมพ์
     function filterSchools(keyword) {
         const dataList = document.getElementById('school_datalist');
         
-        // ถ้าพิมพ์น้อยกว่า 2 ตัวอักษร ยังไม่ต้องค้น (ป้องกันเครื่องค้าง)
-        if (!keyword || keyword.length < 2) {
+        // ถ้ายังไม่มีข้อมูล หรือพิมพ์น้อยกว่า 2 ตัวอักษร ไม่ต้องค้น (กันเครื่องค้าง)
+        if (schoolMasterList.length === 0 || !keyword || keyword.length < 2) {
             return; 
         }
 
-        // ค้นหาโรงเรียนที่ชื่อมีคำที่พิมพ์ (จำกัดแค่ 10-20 ชื่อ เพื่อความลื่นไหล)
-        // เช่น พิมพ์ "สตรี" -> จะเจอ สตรีสิริเกศ, สตรีวัดระฆัง, ฯลฯ
-        const results = schoolMasterList.filter(name => name.includes(keyword)).slice(0, 15);
+        // ค้นหาชื่อที่ "มีคำที่พิมพ์" (จำกัดแค่ 20 ชื่อแรก เพื่อความลื่นไหล)
+        const results = schoolMasterList.filter(name => name.includes(keyword)).slice(0, 20);
 
         // สร้างตัวเลือกใน Datalist
-        dataList.innerHTML = ""; // เคลียร์ของเก่า
+        dataList.innerHTML = ""; // ล้างค่าเก่า
         results.forEach(schoolName => {
             const option = document.createElement('option');
             option.value = schoolName;
@@ -382,6 +392,7 @@
 </body>
 
 </html>
+
 
 
 
