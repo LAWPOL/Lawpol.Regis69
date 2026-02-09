@@ -172,7 +172,18 @@
 
             <div class="mb-3">
               <label class="form-label">โรงเรียน</label>
-              <input type="text" class="form-control" name="school_S" required placeholder="ระบุโรงเรียน เช่น สตรีสิริเกศ">
+              <div class="position-relative">
+                  <input type="text" class="form-control" name="school_S" id="schoolInput" 
+                         required placeholder="พิมพ์ชื่อโรงเรียน... (ระบบจะค้นหาให้อัตโนมัติ)" 
+                         autocomplete="off" list="school_datalist"
+                         oninput="filterSchools(this.value)">
+                  
+                  <datalist id="school_datalist"></datalist>
+            
+                  <small id="school-loading" class="text-secondary" style="font-size: 0.8rem;">
+                    ⏳ กำลังดาวน์โหลดรายชื่อโรงเรียนทั่วประเทศ...
+                  </small>
+              </div>
             </div>
 
             <div class="mb-3">
@@ -318,10 +329,60 @@
          btn.innerText = originalText;
       });
     }
+
+    const SCHOOL_API = "https://raw.githubusercontent.com/patsagorn/thai-school-data/master/school_data.json";
+
+    let schoolMasterList = []; // ตัวแปรเก็บรายชื่อทั้งหมด
+
+    // 2. เริ่มโหลดข้อมูลทันทีที่เปิดเว็บ
+    window.addEventListener('DOMContentLoaded', () => {
+        fetch(SCHOOL_API)
+            .then(response => response.json())
+            .then(data => {
+                // แปลงข้อมูลให้เหลือแค่ "ชื่อโรงเรียน" (ตัดข้อมูลพิกัด/รหัสออกเพื่อประหยัดเมมโมรี่)
+                schoolMasterList = data.map(item => item.school_name);
+                
+                // ซ่อนข้อความ Loading
+                const loadingTxt = document.getElementById('school-loading');
+                if(loadingTxt) {
+                    loadingTxt.innerText = "✅ โหลดรายชื่อโรงเรียนเรียบร้อย (พิมพ์ค้นหาได้เลย)";
+                    loadingTxt.classList.replace('text-secondary', 'text-success');
+                    setTimeout(() => loadingTxt.style.display = 'none', 3000); // ซ่อนหลัง 3 วิ
+                }
+            })
+            .catch(err => {
+                console.error("โหลดโรงเรียนไม่สำเร็จ:", err);
+                document.getElementById('school-loading').innerText = "❌ โหลดรายชื่อไม่สำเร็จ (กรุณาพิมพ์ชื่อโรงเรียนเอง)";
+                document.getElementById('school-loading').classList.replace('text-secondary', 'text-danger');
+            });
+    });
+
+    // 3. ฟังก์ชันค้นหาและแสดงผล (ทำงานตอนพิมพ์)
+    function filterSchools(keyword) {
+        const dataList = document.getElementById('school_datalist');
+        
+        // ถ้าพิมพ์น้อยกว่า 2 ตัวอักษร ยังไม่ต้องค้น (ป้องกันเครื่องค้าง)
+        if (!keyword || keyword.length < 2) {
+            return; 
+        }
+
+        // ค้นหาโรงเรียนที่ชื่อมีคำที่พิมพ์ (จำกัดแค่ 10-20 ชื่อ เพื่อความลื่นไหล)
+        // เช่น พิมพ์ "สตรี" -> จะเจอ สตรีสิริเกศ, สตรีวัดระฆัง, ฯลฯ
+        const results = schoolMasterList.filter(name => name.includes(keyword)).slice(0, 15);
+
+        // สร้างตัวเลือกใน Datalist
+        dataList.innerHTML = ""; // เคลียร์ของเก่า
+        results.forEach(schoolName => {
+            const option = document.createElement('option');
+            option.value = schoolName;
+            dataList.appendChild(option);
+        });
+    }
   </script>
 </body>
 
 </html>
+
 
 
 
