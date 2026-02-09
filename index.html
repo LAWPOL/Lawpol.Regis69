@@ -172,18 +172,7 @@
 
             <div class="mb-3">
               <label class="form-label">โรงเรียน</label>
-              <div class="position-relative">
-                  <input type="text" class="form-control" name="school_S" id="schoolInput" 
-                         required placeholder="พิมพ์ชื่อโรงเรียน... (เช่น สตรีสิริเกศ)" 
-                         autocomplete="off" list="school_datalist"
-                         oninput="filterSchools(this.value)">
-                  
-                  <datalist id="school_datalist"></datalist>
-            
-                  <small id="school-loading" class="text-secondary" style="font-size: 0.8rem;">
-                    ⏳ กำลังดาวน์โหลดรายชื่อโรงเรียน...
-                  </small>
-              </div>
+              <input type="text" class="form-control" name="school_S" required placeholder="ระบุโรงเรียน เช่น สตรีสิริเกศ">
             </div>
 
             <div class="mb-3">
@@ -330,70 +319,11 @@
       });
     }
 
-    // --- ระบบค้นหาโรงเรียน (ใช้ API กระทรวงศึกษาธิการ) ---
-
-    // ลิงก์ API ที่คุณต้องการ
-    const SCHOOL_API = "https://exchange-api.moe.go.th/api/openv1/GetopenData49/2566/1";
-
-    let schoolMasterList = []; 
-
-    window.addEventListener('DOMContentLoaded', () => {
-        const loadingTxt = document.getElementById('school-loading');
-        
-        fetch(SCHOOL_API)
-            .then(response => {
-                if (!response.ok) throw new Error("Network response was not ok");
-                return response.json();
-            })
-            .then(data => {
-                // *** จุดสำคัญ: API ราชการมักเก็บชื่อโรงเรียนในตัวแปรชื่อ SCHOOL_NAME ***
-                // เราต้อง Map ให้ดึงออกมาเฉพาะชื่อ
-                schoolMasterList = data.map(item => item.SCHOOL_NAME);
-                
-                // เช็คว่ามีข้อมูลมาจริงไหม
-                if (schoolMasterList.length === 0) throw new Error("No data found");
-
-                console.log(`โหลดโรงเรียนสำเร็จ: ${schoolMasterList.length} แห่ง`);
-
-                if(loadingTxt) {
-                    loadingTxt.innerText = "✅ เชื่อมต่อฐานข้อมูล ศธ. เรียบร้อย";
-                    loadingTxt.classList.replace('text-secondary', 'text-success');
-                    setTimeout(() => loadingTxt.style.display = 'none', 3000);
-                }
-            })
-            .catch(err => {
-                console.error("เกิดข้อผิดพลาด:", err);
-                if(loadingTxt) {
-                    // ถ้า Error ส่วนใหญ่จะเป็นเพราะ CORS (โดนบล็อก) หรือลิงก์ผิด
-                    loadingTxt.innerText = "⚠️ ไม่สามารถดึงข้อมูลจาก ศธ. ได้ (อาจติดสิทธิ์การเข้าถึง)";
-                    loadingTxt.classList.replace('text-secondary', 'text-warning');
-                    // ถ้าพัง ให้ผู้ใช้พิมพ์เองได้เลย ไม่ต้องล็อก
-                }
-            });
-    });
-
-    // ฟังก์ชันค้นหา (เหมือนเดิม)
-    function filterSchools(keyword) {
-        const dataList = document.getElementById('school_datalist');
-        
-        if (schoolMasterList.length === 0 || !keyword || keyword.length < 2) {
-            return; 
-        }
-
-        // ค้นหาและแสดง 20 รายชื่อแรก
-        const results = schoolMasterList.filter(name => name && name.includes(keyword)).slice(0, 20);
-
-        dataList.innerHTML = ""; 
-        results.forEach(schoolName => {
-            const option = document.createElement('option');
-            option.value = schoolName;
-            dataList.appendChild(option);
-        });
-    }
   </script>
 </body>
 
 </html>
+
 
 
 
